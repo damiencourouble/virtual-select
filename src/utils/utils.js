@@ -5,6 +5,19 @@ export class Utils {
       : '';
   }
 
+  static escapeHTML(text) {
+    const entities = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+      '\r': '&#13;',
+    };
+
+    return Utils.getString(text).replace(/[&<>"'\r]/g, (char) => entities[char]);
+  }
+
   static convertToBoolean(value, defaultValue = false) {
     if (value === true || value === 'true') {
       value = true;

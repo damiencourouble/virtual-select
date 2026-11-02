@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Virtual Select security tests</title>
+  <link rel="stylesheet" href="../dist/virtual-select.min.css">
+  <script src="../dist/virtual-select.min.js"></script>
+</head>
+<body>
+  <pre id="results"></pre>
+  <script>
+    const results = document.querySelector('#results');
+    let failures = 0;
+
+    function assert(condition, message) {
+      if (!condition) throw new Error(message);
+    }
+
+    function test(name, callback) {
+      const element = document.createElement('div');
+      document.body.appendChild(element);
+      try {
+        callback(element);
+        results.textContent += `PASS ${name}\n`;
+      } catch (error) {
+        failures++;
+        results.textContent += `FAIL ${name}: ${error.message}\n`;
+      } finally {
+        if (element.destroy) element.destroy();
+        element.remove();
+      }
+    }
+
+    test('option data renders safely and retains raw values', (element) => {
+      const label = 'A "quote" & <img src=x onerror="window.xss=1">';
+      const value = 'a"&<b> &quot; \r\n c';
+      const description = '<img src=x onerror="window.xss=2">';
+      VirtualSelect.init({
+        ele: element,
+        options: [{ label, value, description, classNames: 'x" data-injected="yes' }],
+        hasOptionDescription: true,
+        keepAlwaysOpen: true,
+        search: true,
+      });
+
+      const option = element.querySelector('.vscomp-option');
+      const text = option.querySelector('.vscomp-option-text');
+      assert(!element.querySelector('img'), 'option created an HTML element');
+      assert(!option.hasAttribute('data-injected'), 'class name created an attribute');
+      assert(option.dataset.value === value, 'value attribute changed');
+      assert(text.textContent.trim() === label, 'label text changed');
+      assert(text.title === label, 'label title changed');
+      assert(element.querySelector('.vscomp-option-description').textContent === description, 'description changed');
+      assert(element.virtualSelect.options[0].label === label, 'stored label changed');
+
+      element.setValue(value, true);
+      assert(element.value === value, 'selected value changed');
+      assert(element.getDisplayValue() === label, 'display value changed');
+      assert(element.querySelector('.vscomp-value').textContent === label, 'selected label changed');
+      assert(!element.querySelector('img'), 'selected label created an HTML element');
+    });
+
+    test('selected tooltip escapes labels without changing output', (element) => {
+      const label = '<img src=x onerror="window.xss=3"> & text';
+      VirtualSelect.init({
+        ele: element,
+        options: [{ label, value: 'one' }, { label: 'Two', value: 'two' }],
+        multiple: true,
+        maxValues: 2,
+      });
+      element.setValue(['one'], true);
+      const tooltip = document.createElement('div');
+      tooltip.innerHTML = element.querySelector('.vscomp-value').dataset.tooltip;
+      assert(!tooltip.querySelector('img'), 'tooltip created an HTML element');
+      assert(tooltip.textContent === label, 'tooltip label changed');
+      assert(element.getDisplayValue()[0] === label, 'selected label output changed');
+    });
+
+    test('search highlighting handles special characters safely', (element) => {
+      const label = '<b>[x] & "text"</b>';
+      VirtualSelect.init({
+        ele: element,
+        options: [{ label, value: 'one' }],
+        keepAlwaysOpen: true,
+        search: true,
+        markSearchResults: true,
+      });
+      element.setSearchValue('[x]');
+      let text = element.querySelector('.vscomp-option-text');
+      assert(text && text.querySelector('mark').textContent === '[x]', 'regex characters not highlighted');
+      assert(text.textContent.trim() === label && !text.querySelector('b'), 'highlight parsed label as HTML');
+      assert(text.title === label, 'highlight changed title');
+      element.setSearchValue('&');
+      text = element.querySelector('.vscomp-option-text');
+      assert(text && text.querySelector('mark').textContent === '&', 'ampersand not searchable');
+      assert(text.textContent.trim() === label, 'highlight changed label');
+    });
+
+    test('updated options and none option use safe rendering', (element) => {
+      const label = 'None & <img src=x onerror="window.xss=5">';
+      VirtualSelect.init({
+        ele: element,
+        options: [{ label: 'Original', value: 'original' }],
+        allowNoneOption: true,
+        noneOptionText: label,
+        keepAlwaysOpen: true,
+      });
+      assert(element.querySelector('.vscomp-option-text').textContent.trim() === label, 'none label changed');
+      element.setOptions([{ label, value: 'updated' }]);
+      assert(!element.querySelector('img'), 'updated option created an HTML element');
+      assert(element.virtualSelect.options[1].label === label, 'updated stored label changed');
+      element.setValue('updated', true);
+      assert(element.value === 'updated' && element.getDisplayValue() === label, 'updated selection changed');
+    });
+
+    test('configurable text and attributes render safely', (element) => {
+      const text = 'Settings "<img src=x onerror=window.xss=4>" & more';
+      const name = 'x" data-injected="yes';
+      VirtualSelect.init({
+        ele: element,
+        options: [],
+        name,
+        placeholder: text,
+        noOptionsText: text,
+        noSearchResultsText: text,
+        searchPlaceholder: text,
+        selectAllText: text,
+        addSearchToSelectionText: text,
+        multiple: true,
+        search: true,
+        addSearchToSelection: true,
+      });
+      assert(!element.querySelector('img'), 'setting created an HTML element');
+      assert(element.querySelector('.vscomp-hidden-input').name === name, 'input name changed');
+      assert(!element.querySelector('.vscomp-hidden-input').hasAttribute('data-injected'), 'name created an attribute');
+      assert(element.querySelector('.vscomp-value').textContent.trim() === text, 'placeholder changed');
+      assert(element.querySelector('.vscomp-no-options').textContent === text, 'no options text changed');
+      assert(element.querySelector('.vscomp-no-search-results').textContent === text, 'no results text changed');
+      assert(element.querySelector('.vscomp-search-input').placeholder === text, 'search placeholder changed');
+      assert(element.querySelector('.vscomp-toggle-all-label').textContent === text, 'select all text changed');
+      assert(element.querySelector('.vscomp-toggle-add-search-label').textContent === text, 'add search text changed');
+    });
+
+    test('selected count message renders as text', (element) => {
+      const message = '<img src=x onerror="window.xss=6"> & selected';
+      VirtualSelect.init({
+        ele: element,
+        options: [{ label: 'One', value: 'one' }, { label: 'Two', value: 'two' }],
+        itemsSelectedMessage: message,
+        multiple: true,
+      });
+      element.setValue(['one', 'two'], true);
+      assert(element.querySelector('.vscomp-value').textContent === `2 ${message}`, 'selection message changed');
+      assert(!element.querySelector('img'), 'selection message created an HTML element');
+    });
+
+    document.documentElement.dataset.result = failures ? 'failed' : 'passed';
+  </script>
+</body>
+</html>

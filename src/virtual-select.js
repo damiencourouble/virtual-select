@@ -165,19 +165,19 @@ export class VirtualSelect {
           </div>
         </div>
 
-        <div class="vscomp-no-options">${this.noOptionsText}</div>
-        <div class="vscomp-no-search-results">${this.noSearchResultsText}</div>
+        <div class="vscomp-no-options">${Utils.escapeHTML(this.noOptionsText)}</div>
+        <div class="vscomp-no-search-results">${Utils.escapeHTML(this.noSearchResultsText)}</div>
 
         <span class="vscomp-dropbox-close-button"><i class="vscomp-clear-icon"></i></span>
       </div>
     </div>`;
 
-    let html = `<div class="${wrapperClasses}" tabindex="0">
-        <input type="hidden" name="${this.name}" class="vscomp-hidden-input">
+    let html = `<div class="${Utils.escapeHTML(wrapperClasses)}" tabindex="0">
+        <input type="hidden" name="${Utils.escapeHTML(this.name)}" class="vscomp-hidden-input">
 
         <div class="vscomp-toggle-button">
           <div class="vscomp-value" ${valueTooltip}>
-            ${this.placeholder}
+            ${Utils.escapeHTML(this.placeholder)}
           </div>
 
           <div class="vscomp-arrow"></div>
@@ -262,7 +262,8 @@ export class VirtualSelect {
     });
 
     if (markSearchResults) {
-      searchRegex = new RegExp(`(${this.searchValue})`, 'gi');
+      const searchText = this.searchValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      searchRegex = new RegExp(`(${searchText})`, 'gi');
     }
 
     if (this.multiple) {
@@ -275,7 +276,7 @@ export class VirtualSelect {
     }
 
     visibleOptions.forEach((d) => {
-      let optionLabel = d.label;
+      let optionLabel = Utils.escapeHTML(d.label);
       let optionClasses = 'vscomp-option';
       let optionTooltip = this.getTooltipAttrText('', true);
       let leftSection = checkboxHtml;
@@ -308,7 +309,7 @@ export class VirtualSelect {
       }
 
       if (d.description) {
-        description = `<div class="vscomp-option-description" ${optionTooltip}>${d.description}</div>`;
+        description = `<div class="vscomp-option-description" ${optionTooltip}>${Utils.escapeHTML(d.description)}</div>`;
       }
 
       if (d.isCurrentNew) {
@@ -316,17 +317,24 @@ export class VirtualSelect {
         rightSection += newOptionIconHtml;
       } else {
         if (markSearchResults && !d.isGroupTitle) {
-          optionLabel = optionLabel.replace(searchRegex, '<mark>$1</mark>');
+          optionLabel = d.label
+            .split(searchRegex)
+            .map((part, index) =>
+              index % 2
+                ? `<mark>${Utils.escapeHTML(part)}</mark>`
+                : Utils.escapeHTML(part)
+            )
+            .join('');
         }
       }
 
-      html += `<div class="${optionClasses}" data-value="${
-        d.value
+      html += `<div class="${Utils.escapeHTML(optionClasses)}" data-value="${
+        Utils.escapeHTML(d.value)
       }" data-index="${d.index}" data-visible-index="${
         d.visibleIndex
       }" ${styleText}>
           ${leftSection}
-          <span title="${optionLabel}" class="vscomp-option-text ${
+          <span title="${Utils.escapeHTML(d.label)}" class="vscomp-option-text ${
         d.value === noneOptionValue ? 'none' : ''
       }" ${optionTooltip}>
             ${optionLabel}
@@ -388,7 +396,7 @@ export class VirtualSelect {
 
     if (this.hasSearch) {
       searchInput = ` <div class="vscomp-search-container">
-          <input type="text" class="vscomp-search-input" placeholder="${this.searchPlaceholder}">
+          <input type="text" class="vscomp-search-input" placeholder="${Utils.escapeHTML(this.searchPlaceholder)}">
           <span class="vscomp-search-clear">&times;</span>
         </div>`;
     }
@@ -397,7 +405,7 @@ export class VirtualSelect {
       checkboxHtml = `<div class="vs-comp-select-all-container">
         <span class="vscomp-toggle-all-button">
           <span class="checkbox-icon vscomp-toggle-all-checkbox"></span>
-          <span class="vscomp-toggle-all-label">${this.selectAllText}</span>
+          <span class="vscomp-toggle-all-label">${Utils.escapeHTML(this.selectAllText)}</span>
         </span>
         </div>`;
     }
@@ -406,7 +414,7 @@ export class VirtualSelect {
       checkboxHtml += `<div class="vs-comp-select-add-search-container">
         <span class="vscomp-toggle-add-search-button">
           <span class="checkbox-icon vscomp-toggle-add-search-checkbox"></span>
-          <span class="vscomp-toggle-add-search-label">${this.addSearchToSelectionText}</span>
+          <span class="vscomp-toggle-add-search-label">${Utils.escapeHTML(this.addSearchToSelectionText)}</span>
         </span>
         </div>`;
     }
@@ -1403,7 +1411,7 @@ export class VirtualSelect {
 
     if (this.isAllSelected && selectedLength > 1) {
       //this.$valueText.innerHTML = `All (${selectedLength})`;
-      this.$valueText.innerHTML = `${selectedLength} ${this.itemsSelectedMessage}`;
+      this.$valueText.textContent = `${selectedLength} ${this.itemsSelectedMessage}`;
     } else {
       const matchingOptions = this.options.filter(
         (d) => selectedValues.indexOf(d.value) !== -1
@@ -1441,7 +1449,7 @@ export class VirtualSelect {
           selectedValuesCount++;
 
           if (selectedValuesCount <= noOfDisplayValues) {
-            valueTooltip.push(`<span class="vscomp-value-tag">${label}</span>`);
+            valueTooltip.push(`<span class="vscomp-value-tag">${Utils.escapeHTML(label)}</span>`);
           }
         }
       }
@@ -1460,9 +1468,9 @@ export class VirtualSelect {
         aggregatedValueText === '' ||
         (selectedValues && selectedValues[0] === noneOptionValue)
       ) {
-        this.$valueText.innerHTML = this.placeholder;
+        this.$valueText.textContent = this.placeholder;
       } else {
-        this.$valueText.innerHTML = aggregatedValueText;
+        this.$valueText.textContent = aggregatedValueText;
 
         if (this.multiple) {
           let maxValues = this.maxValues;
@@ -1479,7 +1487,7 @@ export class VirtualSelect {
             //   selectedLength === 1 ? '' : 's'
             // } selected`;
 
-            this.$valueText.innerHTML = `${countText} ${this.itemsSelectedMessage}`;
+            this.$valueText.textContent = `${countText} ${this.itemsSelectedMessage}`;
           } else {
             /** removing tooltip if full value text is visible */
             valueTooltip = [];

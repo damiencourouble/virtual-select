@@ -183,7 +183,7 @@ export class DomUtils {
       let value = data[k];
 
       if (value !== undefined) {
-        html += ` ${k}="${value}" `;
+        html += ` ${k}="${Utils.escapeHTML(value)}" `;
       }
     }
 
@@ -198,7 +198,7 @@ export class DomUtils {
     }
 
     if (result && !skipAttrName) {
-      result = `style="${result}"`;
+      result = `style="${Utils.escapeHTML(result)}"`;
     }
 
     return result;
